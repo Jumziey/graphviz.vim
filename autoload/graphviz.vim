@@ -47,6 +47,20 @@ function! s:system(cmd) abort
   endif
 endfunction
 
+function! s:job(cmd) abort
+  let s:errcallback= {
+    \ 'on_stderr': function('s:err'),
+    \ }
+	let job_id = jobstart(a:cmd, {'on_stderr': function('s:job_err')})
+	return job_id
+endfunction
+
+function! s:job_err(_job_id, msg, _event) abort
+  echohl ErrorMsg
+  echom '[graphviz.vim] '. join(a:msg)
+  echohl NONE
+endfunction
+
 function! s:parse_option(...) abort
   let num = len(a:000)
 
@@ -107,7 +121,7 @@ function! s:show() abort
   let cmd = s:is_win ? open.' /b '.expand('%:p:.:r').'.'.s:format :
         \ open.' '.shellescape(s:output_fname)
 
-  call s:system(cmd)
+  call s:job(cmd)
 endfunction
 
 function! graphviz#compile(...) abort

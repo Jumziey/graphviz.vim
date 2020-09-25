@@ -47,19 +47,34 @@ function! s:system(cmd) abort
   endif
 endfunction
 
-function! s:job(cmd) abort
+let s:viewer_id = 0
+function! s:open_viewer(cmd) abort
   let s:errcallback= {
     \ 'on_stderr': function('s:err'),
     \ }
-	let job_id = jobstart(a:cmd, {'on_stderr': function('s:job_err')})
-	return job_id
+	if s:viewer_id > 0
+		call jobstop(s:viewer_id)
+	endif
+	let s:viewer_id = jobstart(a:cmd, {
+				\ 'on_stderr': function('s:job_err'), 
+				\ 'on_exit': function('s:viewer_stopped')
+				\ })
 endfunction
 
-function! s:job_err(_job_id, msg, _event) abort
+function! s:viewer_stopped(_job_id, data, _event) abort
+	let s:viewer_id = -1
+endfunction
+
+function! s:job_err(_job_id, data, _event) abort
+	let l:msg  = ['']
+	let l:msg[-1] .= a:data[0]
+	call extend(l:msg, a:data[1:])
   echohl ErrorMsg
-  echom '[graphviz.vim] '. join(a:msg)
+  echom '[graphviz.vim] '. join(l:msg)
   echohl NONE
 endfunction
+
+
 
 function! s:parse_option(...) abort
   let num = len(a:000)
@@ -121,7 +136,7 @@ function! s:show() abort
   let cmd = s:is_win ? open.' /b '.expand('%:p:.:r').'.'.s:format :
         \ open.' '.shellescape(s:output_fname)
 
-  call s:job(cmd)
+  call s:open_viewer(cmd)
 endfunction
 
 function! graphviz#compile(...) abort
